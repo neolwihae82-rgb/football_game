@@ -196,12 +196,6 @@
         </div>
 
         <div id="mobile-controls">
-            <div class="d-pad">
-                <button id="up-btn">▲</button>
-                <button id="left-btn">◀</button>
-                <button id="right-btn">▶</button>
-                <button id="down-btn">▼</button>
-            </div>
             <div class="action-btn">
                 <button id="shoot-btn">SHOOT</button>
             </div>
@@ -265,10 +259,20 @@ class Player extends Entity {
         if (!this.isAI) {
             this.vx = 0;
             this.vy = 0;
-            if (keys.ArrowUp) this.vy = -this.speed;
-            if (keys.ArrowDown) this.vy = this.speed;
-            if (keys.ArrowLeft) this.vx = -this.speed;
-            if (keys.ArrowRight) this.vx = this.speed;
+            if (typeof targetTouchX !== 'undefined' && targetTouchX !== null && targetTouchY !== null) {
+                const dx = targetTouchX - this.x;
+                const dy = targetTouchY - this.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 5) {
+                    this.vx = (dx / dist) * this.speed;
+                    this.vy = (dy / dist) * this.speed;
+                }
+            } else {
+                if (keys.ArrowUp) this.vy = -this.speed;
+                if (keys.ArrowDown) this.vy = this.speed;
+                if (keys.ArrowLeft) this.vx = -this.speed;
+                if (keys.ArrowRight) this.vx = this.speed;
+            }
         } else {
             let targetX = this.homeX;
             let targetY = this.homeY;
@@ -461,6 +465,7 @@ window.addEventListener('keyup', (e) => keys[e.code] = false);
 // 모바일 터치 이벤트 연결
 const bindBtn = (id, code) => {
     const el = document.getElementById(id);
+    if (!el) return;
     const press = (e) => { e.preventDefault(); keys[code] = true; el.style.opacity = '0.5'; };
     const release = (e) => { e.preventDefault(); keys[code] = false; el.style.opacity = '1'; };
     
@@ -469,11 +474,36 @@ const bindBtn = (id, code) => {
     el.addEventListener('pointerleave', release);
 };
 
-bindBtn('up-btn', 'ArrowUp');
-bindBtn('down-btn', 'ArrowDown');
-bindBtn('left-btn', 'ArrowLeft');
-bindBtn('right-btn', 'ArrowRight');
 bindBtn('shoot-btn', 'Space');
+
+canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    targetTouchX = (e.clientX - rect.left) * scaleX;
+    targetTouchY = (e.clientY - rect.top) * scaleY;
+});
+canvas.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+    if (targetTouchX !== null) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        targetTouchX = (e.clientX - rect.left) * scaleX;
+        targetTouchY = (e.clientY - rect.top) * scaleY;
+    }
+});
+canvas.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    targetTouchX = null;
+    targetTouchY = null;
+});
+canvas.addEventListener('pointerleave', (e) => {
+    e.preventDefault();
+    targetTouchX = null;
+    targetTouchY = null;
+});
 
 function selectCharacter(selectedTeam) {
     playerTeam = selectedTeam;
