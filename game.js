@@ -9,6 +9,17 @@ const winnerText = document.getElementById('winner-text');
 const scoreCatEl = document.getElementById('score-cat');
 const scoreMonkeyEl = document.getElementById('score-monkey');
 
+let playerMovementSpeed = 2.5;
+document.getElementById('speed-slider').addEventListener('input', (e) => {
+    playerMovementSpeed = parseFloat(e.target.value);
+    document.getElementById('speed-val').innerText = playerMovementSpeed;
+    for (let p of players) {
+        if (!p.isAI) {
+            p.speed = playerMovementSpeed;
+        }
+    }
+});
+
 let playerTeam = '';
 let aiTeam = '';
 
@@ -44,7 +55,7 @@ class Player extends Entity {
         super(x, y, 25);
         this.team = team;
         this.isAI = isAI;
-        this.speed = this.isAI ? 3.5 : 4.5;
+        this.speed = this.isAI ? 3.5 : playerMovementSpeed;
         this.img = team === 'cat' ? catImg : monkeyImg;
         this.role = 'atk';
         this.homeX = x;
@@ -143,6 +154,7 @@ class Ball extends Entity {
         super(x, y, 15);
         this.friction = 0.98;
         this.owner = null;
+        this.lastOwner = null;
         this.cooldown = 0;
         this.isShot = false;
     }
@@ -320,15 +332,14 @@ function updateJoystickPointer(e) {
     
     let normX = dx / maxRadius;
     let normY = dy / maxRadius;
-    
+
     const normDist = Math.hypot(normX, normY);
-    if (normDist > 1) {
+    if (normDist > 0) {
         normX /= normDist;
         normY /= normDist;
     }
-    
-    joystickVector = { x: normX, y: normY };
-}
+
+    joystickVector = { x: normX, y: normY };}
 
 shootBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -349,10 +360,17 @@ const endShoot = (e) => {
 shootBtn.addEventListener('pointerup', endShoot);
 shootBtn.addEventListener('pointercancel', endShoot);
 
+let teamSize = 4;
+
 function selectCharacter(selectedTeam) {
     playerTeam = selectedTeam;
     aiTeam = selectedTeam === 'cat' ? 'monkey' : 'cat';
     
+    const sizeSelect = document.getElementById('team-size');
+    if (sizeSelect) {
+        teamSize = parseInt(sizeSelect.value, 10);
+    }
+
     uiContainer.style.display = 'none';
     gameScreen.style.display = 'flex';
     
@@ -375,12 +393,42 @@ function resetPositions() {
         const sign = isLeft ? 1 : -1;
         const centerX = isLeft ? field.width / 4 : field.width * 3 / 4;
         
-        const isUser = (teamName === playerTeam);
-        const p = new Player(centerX, field.height / 2, teamName, !isUser);
-        p.role = 'atk';
-        p.homeX = centerX;
-        p.homeY = field.height / 2;
-        players.push(p);
+        for (let i = 0; i < teamSize; i++) {
+            // First player of user's team is initially controlled
+            const isUserControlled = (teamName === playerTeam && i === 0);
+            const isAI = !isUserControlled; 
+            
+            // Distribute start positions
+            let startX = centerX;
+            let startY = field.height / 2;
+            let role = 'atk';
+            
+            if (teamSize > 1) {
+                if (i === 0) { // Forward
+                    startX = isLeft ? centerX + 50 : centerX - 50;
+                    startY = field.height / 2;
+                    role = 'atk';
+                } else if (i === 1) { // Midfielder/Def
+                    startX = centerX;
+                    startY = field.height / 2 - 80;
+                    role = 'def';
+                } else if (i === 2) { // Midfielder/Def
+                    startX = centerX;
+                    startY = field.height / 2 + 80;
+                    role = 'def';
+                } else if (i === 3) { // Goalkeeper
+                    startX = isLeft ? 50 : field.width - 50;
+                    startY = field.height / 2;
+                    role = 'gk';
+                }
+            }
+
+            const p = new Player(startX, startY, teamName, isAI);
+            p.role = role;
+            p.homeX = startX;
+            p.homeY = startY;
+            players.push(p);
+        }
     };
 
     createTeam('cat', true);
@@ -460,6 +508,7 @@ function gameLoop() {
             let angle = (ball.owner.vx !== 0 || ball.owner.vy !== 0) ? Math.atan2(ball.owner.vy, ball.owner.vx) : (ball.owner.team === 'cat' ? 0 : Math.PI);
             ball.vx = Math.cos(angle) * kickSpeed;
             ball.vy = Math.sin(angle) * kickSpeed;
+            ball.lastOwner = ball.owner;
             ball.owner = null;
             ball.cooldown = 15;
             ball.isShot = true; // 슛 상태 플래그
@@ -475,6 +524,7 @@ function gameLoop() {
                 const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
                 ball.vx = Math.cos(angle) * kickSpeed;
                 ball.vy = Math.sin(angle) * kickSpeed;
+                ball.lastOwner = ball.owner;
                 ball.owner = null;
                 ball.cooldown = 15;
                 ball.isShot = true; // 슛 상태 플래그
@@ -490,8 +540,19 @@ function gameLoop() {
         
         if (dist < p.radius + ball.radius + 5) {
             if (!ball.owner) {
-                if (ball.isShot || ball.cooldown > 0) {
-                    // 슛한 공이거나 쿨다운 중이면 무조건 튕겨나감
+                if ((ball.isShot || ball.cooldown > 0) && ball.lastOwner && ball.lastOwner.team === p.team && ball.lastOwner !== p) {
+                    // 패스 받기 (같은 팀이 찬 공)
+                    ball.owner = p;
+                    ball.isShot = false;
+                    ball.cooldown = 0;
+                    if (p.team === playerTeam) {
+                        players.forEach(pl => {
+                            if (pl.team === playerTeam) pl.isAI = true;
+                        });
+                        p.isAI = false;
+                    }
+                } else if (ball.isShot || ball.cooldown > 0) {
+                    // 슛한 공이거나 쿨다운 중이면 무조건 튕겨나감 (상대팀이거나 본인이 찼을 때)
                     const dotProduct = ball.vx * dx + ball.vy * dy;
                     if (dotProduct < 0) { 
                         const angle = Math.atan2(dy, dx);
@@ -514,10 +575,17 @@ function gameLoop() {
                 } else {
                     // 그냥 닿았을 때 공을 차지하여 드리블 시작
                     ball.owner = p;
+                    if (p.team === playerTeam && p.isAI) {
+                        players.forEach(pl => {
+                            if (pl.team === playerTeam) pl.isAI = true;
+                        });
+                        p.isAI = false;
+                    }
                 }
             } else if (ball.owner && ball.owner.team !== p.team) {
                 // 상대방이 드리블 중인 공에 닿으면 공을 놓침 (난전 유도)
                 if (ball.cooldown <= 0) {
+                    ball.lastOwner = ball.owner;
                     ball.owner = null;
                     ball.vx = (Math.random() - 0.5) * 10;
                     ball.vy = (Math.random() - 0.5) * 10;

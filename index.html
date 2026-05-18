@@ -21,10 +21,23 @@
                     <p>원숭이</p>
                 </div>
             </div>
+            <div style="margin-top: 20px;">
+                <label for="speed-slider" style="display:block; margin-bottom:10px;">이동 속도: <span id="speed-val">2.5</span></label>
+                <input type="range" id="speed-slider" min="1" max="6" step="0.5" value="2.5" style="width: 80%;">
+            </div>
+            <div style="margin-top: 20px;">
+                <label for="team-size" style="display:block; margin-bottom:10px;">팀당 인원 수</label>
+                <select id="team-size" style="width: 80%; padding: 5px; font-size: 16px;">
+                    <option value="1">1 vs 1</option>
+                    <option value="2">2 vs 2</option>
+                    <option value="3">3 vs 3</option>
+                    <option value="4" selected>4 vs 4</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <div id="game-screen" style="display: none;">
+    <div id="game-screen" style="display: none; flex-direction: column;">
         <div id="game-container">
             <canvas id="gameCanvas" width="800" height="450"></canvas>
             
@@ -32,18 +45,20 @@
                 <span id="score-cat">고양이: 0</span>
                 <span id="score-monkey">원숭이: 0</span>
             </div>
-            
+
+            <div id="game-over-screen" style="display: none;">
+                <h2 id="winner-text"></h2>
+                <button onclick="resetGame()">다시하기</button>
+            </div>
+        </div>
+
+        <div id="controls-container">
             <div id="joystick-zone">
                 <div id="joystick-knob"></div>
             </div>
             
             <div id="action-zone">
                 <button id="shoot-btn">슛<br>(SHOOT)</button>
-            </div>
-
-            <div id="game-over-screen" style="display: none;">
-                <h2 id="winner-text"></h2>
-                <button onclick="resetGame()">다시하기</button>
             </div>
         </div>
     </div>

@@ -77,13 +77,14 @@ body {
     position: relative;
     width: 100vw;
     height: 56.25vw; /* 16:9 aspect ratio */
-    max-height: 100vh;
-    max-width: 177.78vh; /* 16:9 aspect ratio */
+    max-height: 65vh; /* Adjusted for controls */
+    max-width: 115.55vh; /* 65vh * 16/9 */
     display: flex;
     justify-content: center;
     align-items: center;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     background-color: #4CAF50;
+    flex-shrink: 0;
 }
 
 #gameCanvas {
@@ -107,13 +108,22 @@ body {
     z-index: 5;
 }
 
+#controls-container {
+    width: 100vw;
+    height: 35vh;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #1a252f;
+    box-sizing: border-box;
+    padding: 10px 20px;
+}
+
 /* Joystick on bottom left */
 #joystick-zone {
-    position: absolute;
-    bottom: 10%;
-    left: 5%;
-    width: min(25vw, 25vh);
-    height: min(25vw, 25vh);
+    position: relative;
+    width: min(30vw, 25vh);
+    height: min(30vw, 25vh);
     background: rgba(255, 255, 255, 0.15);
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
@@ -136,20 +146,18 @@ body {
 
 /* Action button on bottom right */
 #action-zone {
-    position: absolute;
-    bottom: 10%;
-    right: 5%;
+    position: relative;
     z-index: 10;
 }
 
 #shoot-btn {
-    width: min(20vw, 20vh);
-    height: min(20vw, 20vh);
+    width: min(25vw, 20vh);
+    height: min(25vw, 20vh);
     border-radius: 50%;
     background: radial-gradient(circle, rgba(231, 76, 60, 0.9) 0%, rgba(192, 57, 43, 0.9) 100%);
     border: 3px solid rgba(255,255,255,0.5);
     color: white;
-    font-size: min(3vw, 2.5vh);
+    font-size: min(4vw, 3vh);
     font-weight: bold;
     touch-action: none;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
