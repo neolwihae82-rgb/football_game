@@ -3,6 +3,7 @@ const ctx = canvas.getContext('2d');
 
 const selectionScreen = document.getElementById('selection-screen');
 const gameScreen = document.getElementById('game-screen');
+const uiContainer = document.getElementById('ui-container');
 const gameOverScreen = document.getElementById('game-over-screen');
 const winnerText = document.getElementById('winner-text');
 const scoreCatEl = document.getElementById('score-cat');
@@ -24,8 +25,8 @@ let isGameRunning = false;
 let score = { cat: 0, monkey: 0 };
 const WINNING_SCORE = 6;
 
-// Entities
-const field = { width: 800, height: 600, goalWidth: 150 };
+// Entities (16:9 ratio field)
+const field = { width: 800, height: 450, goalWidth: 150 };
 const cornerRadius = 60;
 
 class Entity {
@@ -54,10 +55,17 @@ class Player extends Entity {
         if (!this.isAI) {
             this.vx = 0;
             this.vy = 0;
-            if (keys.ArrowUp) this.vy = -this.speed;
-            if (keys.ArrowDown) this.vy = this.speed;
-            if (keys.ArrowLeft) this.vx = -this.speed;
-            if (keys.ArrowRight) this.vx = this.speed;
+            
+            // Joystick logic
+            if (joystickActive) {
+                this.vx = joystickVector.x * this.speed;
+                this.vy = joystickVector.y * this.speed;
+            } else {
+                if (keys.ArrowUp) this.vy = -this.speed;
+                if (keys.ArrowDown) this.vy = this.speed;
+                if (keys.ArrowLeft) this.vx = -this.speed;
+                if (keys.ArrowRight) this.vx = this.speed;
+            }
         } else {
             let targetX = this.homeX;
             let targetY = this.homeY;
@@ -66,7 +74,6 @@ class Player extends Entity {
             const distToBall = Math.hypot(ball.x - this.x, ball.y - this.y);
             const isLeftTeam = this.team === 'cat';
             
-            // 공을 소유하고 있다면 무조건 상대 골대로 전진
             if (ball.owner === this) {
                 targetX = isLeftTeam ? field.width : 0;
                 targetY = field.height / 2;
@@ -136,14 +143,19 @@ class Ball extends Entity {
         super(x, y, 15);
         this.friction = 0.98;
         this.owner = null;
-        this.cooldown = 0; // 스틸/슈팅 후 재소유 대기시간
+        this.cooldown = 0;
+        this.isShot = false;
     }
 
     update() {
         if (this.cooldown > 0) this.cooldown--;
 
+        const speed = Math.hypot(this.vx, this.vy);
+        if (this.isShot && speed < 4) {
+            this.isShot = false;
+        }
+
         if (this.owner) {
-            // 드리블 중일 때는 주인의 약간 앞에 공을 위치시킴
             let angle = 0;
             if (this.owner.vx !== 0 || this.owner.vy !== 0) {
                 angle = Math.atan2(this.owner.vy, this.owner.vx);
@@ -155,6 +167,7 @@ class Ball extends Entity {
             this.y = this.owner.y + Math.sin(angle) * (this.owner.radius + this.radius);
             this.vx = 0;
             this.vy = 0;
+            this.isShot = false;
         } else {
             this.x += this.vx;
             this.y += this.vy;
@@ -162,7 +175,7 @@ class Ball extends Entity {
             this.vy *= this.friction;
         }
 
-        // 벽 충돌 및 골 판정 (공 소유 여부와 상관없이)
+        // 벽 충돌 및 골 판정
         if (this.x - this.radius < 0) {
             if (this.y > field.height/2 - field.goalWidth/2 && this.y < field.height/2 + field.goalWidth/2) {
                 return 'monkey';
@@ -187,7 +200,7 @@ class Ball extends Entity {
             if (!this.owner) this.vy *= -1;
         }
         
-        // 둥근 모서리 충돌 (공이 자유 상태일 때만)
+        // 둥근 모서리 충돌
         if (!this.owner) {
             const corners = [
                 {x: 0, y: 0},
@@ -226,7 +239,6 @@ class Ball extends Entity {
         ctx.drawImage(ballImg, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
         ctx.restore();
 
-        // 드리블 중일 때 공 주변에 효과 표시
         if (this.owner) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
@@ -249,12 +261,100 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => keys[e.code] = false);
 
+// Virtual Joystick and Shoot Button Logic
+let joystickActive = false;
+let joystickVector = { x: 0, y: 0 };
+let shootPressed = false;
+let joystickTouchId = null;
+
+const joystickZone = document.getElementById('joystick-zone');
+const joystickKnob = document.getElementById('joystick-knob');
+const shootBtn = document.getElementById('shoot-btn');
+
+joystickZone.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (joystickTouchId !== null) return;
+    joystickTouchId = e.pointerId;
+    joystickActive = true;
+    joystickZone.setPointerCapture(e.pointerId);
+    updateJoystickPointer(e);
+});
+
+joystickZone.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+    if (joystickTouchId === e.pointerId) {
+        updateJoystickPointer(e);
+    }
+});
+
+const endJoystick = (e) => {
+    e.preventDefault();
+    if (joystickTouchId === e.pointerId) {
+        joystickTouchId = null;
+        joystickActive = false;
+        joystickVector = { x: 0, y: 0 };
+        joystickKnob.style.transform = `translate(-50%, -50%)`;
+        joystickZone.releasePointerCapture(e.pointerId);
+    }
+};
+
+joystickZone.addEventListener('pointerup', endJoystick);
+joystickZone.addEventListener('pointercancel', endJoystick);
+
+function updateJoystickPointer(e) {
+    const rect = joystickZone.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const maxRadius = rect.width / 2;
+
+    let dx = e.clientX - centerX;
+    let dy = e.clientY - centerY;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance > maxRadius) {
+        dx = (dx / distance) * maxRadius;
+        dy = (dy / distance) * maxRadius;
+    }
+
+    joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    
+    let normX = dx / maxRadius;
+    let normY = dy / maxRadius;
+    
+    const normDist = Math.hypot(normX, normY);
+    if (normDist > 1) {
+        normX /= normDist;
+        normY /= normDist;
+    }
+    
+    joystickVector = { x: normX, y: normY };
+}
+
+shootBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    shootPressed = true;
+    keys['Space'] = true;
+    shootBtn.style.transform = 'scale(0.95)';
+    shootBtn.setPointerCapture(e.pointerId);
+});
+
+const endShoot = (e) => {
+    e.preventDefault();
+    shootPressed = false;
+    keys['Space'] = false;
+    shootBtn.style.transform = 'none';
+    shootBtn.releasePointerCapture(e.pointerId);
+};
+
+shootBtn.addEventListener('pointerup', endShoot);
+shootBtn.addEventListener('pointercancel', endShoot);
+
 function selectCharacter(selectedTeam) {
     playerTeam = selectedTeam;
     aiTeam = selectedTeam === 'cat' ? 'monkey' : 'cat';
     
-    selectionScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
+    uiContainer.style.display = 'none';
+    gameScreen.style.display = 'flex';
     
     resetGame();
 }
@@ -295,6 +395,10 @@ function updateScoreUI() {
 }
 
 function drawField() {
+    // Canvas background is now transparent or same as container
+    // Let's clear properly
+    ctx.clearRect(0, 0, field.width, field.height);
+    
     ctx.fillStyle = '#4CAF50';
     ctx.fillRect(0, 0, field.width, field.height);
 
@@ -351,76 +455,74 @@ function gameLoop() {
 
     // 드리블/스틸 및 킥 로직
     if (ball.owner) {
-        // 소유자의 킥(스페이스바) 또는 AI의 슛/패스
-        if (!ball.owner.isAI && keys['Space']) {
-            const kickSpeed = 15;
+        if (!ball.owner.isAI && (keys['Space'] || shootPressed)) {
+            const kickSpeed = 16;
             let angle = (ball.owner.vx !== 0 || ball.owner.vy !== 0) ? Math.atan2(ball.owner.vy, ball.owner.vx) : (ball.owner.team === 'cat' ? 0 : Math.PI);
             ball.vx = Math.cos(angle) * kickSpeed;
             ball.vy = Math.sin(angle) * kickSpeed;
             ball.owner = null;
-            ball.cooldown = 20; // 잠시 동안 누구도 잡을 수 없음
+            ball.cooldown = 15;
+            ball.isShot = true; // 슛 상태 플래그
+            shootPressed = false;
         } else if (ball.owner.isAI) {
             const isLeftTeam = ball.owner.team === 'cat';
             const targetX = isLeftTeam ? field.width : 0;
             const targetY = field.height / 2;
             const distToGoal = Math.hypot(targetX - ball.x, targetY - ball.y);
             
-            // 골대 근처면 슛
             if (distToGoal < 250 && Math.random() < 0.05) {
-                const kickSpeed = 15;
+                const kickSpeed = 16;
                 const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
                 ball.vx = Math.cos(angle) * kickSpeed;
                 ball.vy = Math.sin(angle) * kickSpeed;
                 ball.owner = null;
-                ball.cooldown = 20;
+                ball.cooldown = 15;
+                ball.isShot = true; // 슛 상태 플래그
             }
         }
     }
 
-    // 공 소유자 판별 및 스틸
+    // 공 소유자 판별 및 스틸/반사
     for (let p of players) {
         const dx = ball.x - p.x;
         const dy = ball.y - p.y;
         const dist = Math.hypot(dx, dy);
         
-        // 공과 캐릭터가 닿았을 때
         if (dist < p.radius + ball.radius + 5) {
-            const ballSpeed = Math.hypot(ball.vx, ball.vy);
-            
             if (!ball.owner) {
-                if (ball.cooldown > 0 || ballSpeed > 7) {
-                    // 슛이나 패스로 인해 공이 빠르거나 쿨다운 중일 때 닿으면 튕겨나감
+                if (ball.isShot || ball.cooldown > 0) {
+                    // 슛한 공이거나 쿨다운 중이면 무조건 튕겨나감
                     const dotProduct = ball.vx * dx + ball.vy * dy;
-                    if (dotProduct < 0) { // 공이 캐릭터를 향해 다가올 때만
+                    if (dotProduct < 0) { 
                         const angle = Math.atan2(dy, dx);
                         const nx = Math.cos(angle);
                         const ny = Math.sin(angle);
                         
-                        // 겹침 보정
                         const overlap = (p.radius + ball.radius + 5) - dist;
                         ball.x += nx * overlap;
                         ball.y += ny * overlap;
 
-                        // 반사 속도 계산
                         const dot = ball.vx * nx + ball.vy * ny;
                         ball.vx -= 2 * dot * nx;
                         ball.vy -= 2 * dot * ny;
                         
-                        // 충돌 시 약간의 에너지 손실
                         ball.vx *= 0.8;
                         ball.vy *= 0.8;
                         
-                        // 튕겨나간 직후에는 다시 잡히지 않도록 쿨다운 부여
                         ball.cooldown = 15;
                     }
-                } else if (ball.cooldown <= 0) {
-                    // 아무도 공을 안 가졌고 튕길 상태도 아니면 차지
+                } else {
+                    // 그냥 닿았을 때 공을 차지하여 드리블 시작
                     ball.owner = p;
                 }
-            } else if (ball.owner && ball.owner.team !== p.team && ball.cooldown <= 0) {
-                // 상대편이 공을 가졌을 때 부딪히면 스틸
-                ball.owner = p;
-                ball.cooldown = 30; // 스틸 직후 재스틸 방지
+            } else if (ball.owner && ball.owner.team !== p.team) {
+                // 상대방이 드리블 중인 공에 닿으면 공을 놓침 (난전 유도)
+                if (ball.cooldown <= 0) {
+                    ball.owner = null;
+                    ball.vx = (Math.random() - 0.5) * 10;
+                    ball.vy = (Math.random() - 0.5) * 10;
+                    ball.cooldown = 30; 
+                }
             }
         }
     }
@@ -440,7 +542,6 @@ function gameLoop() {
         }
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawField();
     
     let userPlayer = null;

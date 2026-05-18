@@ -5,25 +5,39 @@ body {
     color: white;
     font-family: 'Malgun Gothic', sans-serif;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    overflow: hidden;
+    touch-action: none; /* 스크롤 방지 */
 }
 
 #ui-container {
     text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+}
+
+#title-text {
+    margin: 10px 0;
 }
 
 #selection-screen {
     background-color: #34495e;
-    padding: 30px;
+    padding: 20px;
     border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
 }
 
 .character-options {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 15px;
     margin-top: 20px;
 }
 
@@ -36,33 +50,115 @@ body {
     transition: transform 0.2s;
 }
 
-.character-card:hover {
-    transform: scale(1.05);
+.character-card:active {
+    transform: scale(0.95);
 }
 
 .character-card img {
-    width: 150px;
-    height: 150px;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     border-radius: 5px;
 }
 
 #game-screen {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #1a252f;
 }
 
-#scoreboard {
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 56.25vw; /* 16:9 aspect ratio */
+    max-height: 100vh;
+    max-width: 177.78vh; /* 16:9 aspect ratio */
     display: flex;
-    justify-content: space-around;
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 10px;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    background-color: #4CAF50;
 }
 
 #gameCanvas {
+    width: 100%;
+    height: 100%;
     background-color: #4CAF50;
-    border: 5px solid #fff;
-    border-radius: 10px;
+    display: block;
+}
+
+#scoreboard {
+    position: absolute;
+    top: 5%;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    font-size: min(4vw, 3vh);
+    font-weight: bold;
+    color: white;
+    pointer-events: none;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    z-index: 5;
+}
+
+/* Joystick on bottom left */
+#joystick-zone {
+    position: absolute;
+    bottom: 10%;
+    left: 5%;
+    width: min(25vw, 25vh);
+    height: min(25vw, 25vh);
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    touch-action: none;
+    z-index: 10;
+}
+
+#joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40%;
+    height: 40%;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Action button on bottom right */
+#action-zone {
+    position: absolute;
+    bottom: 10%;
+    right: 5%;
+    z-index: 10;
+}
+
+#shoot-btn {
+    width: min(20vw, 20vh);
+    height: min(20vw, 20vh);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(231, 76, 60, 0.9) 0%, rgba(192, 57, 43, 0.9) 100%);
+    border: 3px solid rgba(255,255,255,0.5);
+    color: white;
+    font-size: min(3vw, 2.5vh);
+    font-weight: bold;
+    touch-action: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    outline: none;
+    cursor: pointer;
+}
+
+#shoot-btn:active {
+    background: rgba(192, 57, 43, 1);
 }
 
 #game-over-screen {
@@ -71,9 +167,10 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: rgba(0, 0, 0, 0.8);
-    padding: 30px;
+    padding: 20px;
     border-radius: 10px;
     text-align: center;
+    z-index: 20;
 }
 
 #game-over-screen button {
@@ -81,4 +178,17 @@ body {
     font-size: 18px;
     cursor: pointer;
     margin-top: 15px;
+    border-radius: 5px;
+    border: none;
+    background: #3498db;
+    color: white;
+}
+
+@media (orientation: portrait) {
+    #title-text::after {
+        content: "\A(가로 모드로 회전해주세요)";
+        white-space: pre;
+        font-size: 0.6em;
+        color: #f1c40f;
+    }
 }
