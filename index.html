@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고양이 vs 원숭이 축구</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-container">
+        <h1>고양이 vs 원숭이 축구</h1>
+        <div id="selection-screen">
+            <h2>캐릭터를 선택하세요</h2>
+            <div class="character-options">
+                <div class="character-card" onclick="selectCharacter('cat')">
+                    <img src="sample picture/cat.jpg" alt="고양이">
+                    <p>고양이</p>
+                </div>
+                <div class="character-card" onclick="selectCharacter('monkey')">
+                    <img src="sample picture/monkey.jpg" alt="원숭이">
+                    <p>원숭이</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-screen" style="display: none;">
+            <div id="scoreboard">
+                <span id="score-cat">고양이: 0</span>
+                <span id="score-monkey">원숭이: 0</span>
+            </div>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="game-over-screen" style="display: none;">
+                <h2 id="winner-text"></h2>
+                <button onclick="resetGame()">다시하기</button>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
